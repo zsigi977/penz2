@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Saját Költségvetés Követő</title>
+    
+    <!-- Ikonok beállítása -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Saját Költség">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: url('hatter.jpg') repeat center center fixed; 
+            background-size: contain; 
+            margin: 0; padding: 10px; 
+            display: flex; flex-direction: column; align-items: center; 
+            min-height: 100vh; 
+        }
+
+        #app { 
+            /* Félig áttetsző üveglap dizájn (Glassmorphism) */
+            background: rgba(224, 242, 254, 0.45); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 20px; border-radius: 25px; 
+            box-shadow: 0 10px 40px rgba(0, 50, 100, 0.2); 
+            width: 100%; max-width: 500px; 
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; background: rgba(255,255,255,0.5); cursor: pointer; font-weight: bold; font-size: 14px; color: #0369a1; }
+        .tab-btn.active { background: #0284c7; color: white; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }
+
+        .card { 
+            background: rgba(255, 255, 255, 0.6); 
+            padding: 15px; border-radius: 15px; 
+            margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.6); 
+            width: 100%; 
+        }
+
+        /* Fő egyenleg kártya felül - Kékes árnyalatban */
+        .balance-card {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: white;
+            border-radius: 18px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.3);
+        }
+        .balance-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
+        .balance-amount { font-size: 32px; font-weight: bold; margin: 8px 0; }
+        .balance-details { display: flex; justify-content: space-around; font-size: 13px; opacity: 0.95; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px; }
+
+        label {
+            font-weight: bold;
+            font-size: 13px;
+            color: #0c4a6e;
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 4px;
+        }
+        
+        input[type="text"], input[type="number"], input[type="date"], select { 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid rgba(2, 132, 199, 0.3); 
+            font-size: 15px; 
+            margin-bottom: 10px; 
+            width: 100% !important; 
+            display: block;
+            background: rgba(255,255,255,0.85);
+            -webkit-appearance: none;
+            appearance: none;
+            color: #0c4a6e;
+        }
+
+        .btn-primary { background: #0284c7; color: white; border: none; padding: 14px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2); }
+        .btn-success { background: #0ea5e9; color: white; border: none; padding: 14px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2); }
+        .btn-delete { background: none; border: none; color: #e11d48; cursor: pointer; font-size: 16px; padding: 5px; }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.75);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 5px solid #0284c7;
+        }
+
+        .stat-title { font-size: 12px; color: #0369a1; font-weight: bold; text-transform: uppercase; }
+        .stat-value { font-size: 20px; font-weight: bold; color: #0c4a6e; margin-top: 2px; }
+
+        h3 { color: #0c4a6e; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Hónap választó & Fő Egyenleg Kártya -->
+    <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+        <label for="activeMonthSelect" style="margin:0; font-size:14px;">Aktuális Hónap:</label>
+        <input type="month" id="activeMonthSelect" style="width: auto !important; margin:0; padding:8px;" onchange="changeMonth()">
+    </div>
+
+    <div class="balance-card">
+        <div class="balance-title">Fennmaradó Egyenleg</div>
+        <div class="balance-amount" id="mainBalance">0 Ft</div>
+        <div class="balance-details">
+            <div>Bevétel: <span id="headerIncome" style="font-weight:bold;">0 Ft</span></div>
+            <div>Kiadás: <span id="headerExpense" style="font-weight:bold;">0 Ft</span></div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button id="btn-tab-log" class="tab-btn active" onclick="showTab('log')">💳 Pénzügyek</button>
+        <button id="btn-tab-stats" class="tab-btn" onclick="showTab('stats')">📊 Statisztika</button>
+    </div>
+
+    <!-- NAPLÓZÁS TAB -->
+    <div id="tab-log">
+        <!-- Havi Bevétel Beállítása kártya -->
+        <div class="card">
+            <h3 style="margin-top:0;">💰 Havi Bevétel / Keret</h3>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="monthlyIncomeInput" placeholder="pl. 400000" style="margin-bottom:0;">
+                <button class="btn-success" style="margin-top:0; width: auto; padding: 0 20px;" onclick="saveMonthlyIncome()">Mentés</button>
+            </div>
+        </div>
+
+        <!-- Kiadások kártya -->
+        <div class="card">
+            <h3 style="margin-top:0;">🛒 Új Kiadás Hozzáadása</h3>
+
+            <label for="expenseAmount">Összeg (Ft)</label>
+            <input type="number" id="expenseAmount" placeholder="pl. 4500">
+
+            <label for="expenseCategory">Kategória</label>
+            <select id="expenseCategory">
+                <option value="Bevásárlás">Bevásárlás</option>
+                <option value="Étterem">Étterem</option>
+                <option value="Hitel">Hitel</option>
+                <option value="Autó">Autó</option>
+                <option value="Állatok">Állatok</option>
+                <option value="Ajándék">Ajándék</option>
+                <option value="Szórakozás">Szórakozás</option>
+                <option value="TBSZ">TBSZ</option>
+                <option value="Egyéb">Egyéb</option>
+            </select>
+
+            <label for="expenseComment">Megjegyzés (opcionális)</label>
+            <input type="text" id="expenseComment" placeholder="pl. meki">
+
+            <button class="btn-primary" onclick="saveExpense()">Kiadás Mentése</button>
+        </div>
+
+        <div id="history-container"></div>
+    </div>
+
+    <!-- STATISZTIKA TAB -->
+    <div id="tab-stats" class="hidden">
+        <div class="card">
+            <h3 style="margin-top:0;">Havi Összegzés</h3>
+            <div id="stats-content" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCslE4Kc229j41Sm2l7ovpc_KEWhOb107k",
+        authDomain: "bevasarlolista-dd660.firebaseapp.com",
+        databaseURL: "https://bevasarlolista-dd660-default-rtdb.firebaseio.com",
+        projectId: "bevasarlolista-dd660",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let allIncomes = {};
+    let allExpenses = {};
+    let currentMonth = new Date().toISOString().slice(0, 7);
+
+    document.getElementById('activeMonthSelect').value = currentMonth;
+
+    window.changeMonth = () => {
+        currentMonth = document.getElementById('activeMonthSelect').value;
+        updateUI();
+    };
+
+    window.saveMonthlyIncome = () => {
+        const amount = parseFloat(document.getElementById('monthlyIncomeInput').value);
+        if (isNaN(amount) || amount < 0) return alert("Adj meg egy érvényes összeget!");
+
+        // ITT ÁTÍRVA A SAJÁT ÚTVONALRA:
+        set(ref(db, `sajat_havi_bevételek/${currentMonth}`), { amount }).then(() => {
+            alert("Havi bevétel frissítve!");
+            document.getElementById('monthlyIncomeInput').value = "";
+        });
+    };
+
+    window.saveExpense = () => {
+        const amount = parseFloat(document.getElementById('expenseAmount').value);
+        const category = document.getElementById('expenseCategory').value;
+        const comment = document.getElementById('expenseComment').value.trim();
+
+        if (isNaN(amount) || amount <= 0) {
+            return alert("Kérlek, add meg az összeget!");
+        }
+
+        // ITT ÁTÍRVA A SAJÁT ÚTVONALRA:
+        const newRef = push(ref(db, 'sajat_koltseg_kiadasok'));
+        set(newRef, { 
+            month: currentMonth, 
+            amount, 
+            category, 
+            comment, 
+            timestamp: new Date().getTime() 
+        }).then(() => {
+            document.getElementById('expenseAmount').value = "";
+            document.getElementById('expenseComment').value = "";
+            alert("Kiadás elmentve!");
+        });
+    };
+
+    window.deleteItem = (id) => {
+        if (confirm("Biztosan törlöd ezt a kiadást?")) {
+            // ITT ÁTÍRVA A SAJÁT ÚTVONALRA:
+            remove(ref(db, `sajat_koltseg_kiadasok/${id}`));
+        }
+    };
+
+    // ITT ÁTÍRVA A SAJÁT ÚTVONALRA:
+    onValue(ref(db, 'sajat_havi_bevételek'), (snapshot) => {
+        allIncomes = snapshot.val() || {};
+        updateUI();
+    });
+
+    // ITT ÁTÍRVA A SAJÁT ÚTVONALRA:
+    onValue(ref(db, 'sajat_koltseg_kiadasok'), (snapshot) => {
+        allExpenses = snapshot.val() || {};
+        updateUI();
+    });
+
+    function updateUI() {
+        renderHistory();
+        renderStats();
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('history-container');
+        container.innerHTML = "<h3>Havi Kiadások Lista</h3>";
+
+        const monthExpenses = Object.keys(allExpenses)
+            .map(id => ({ id, ...allExpenses[id] }))
+            .filter(item => item.month === currentMonth)
+            .sort((a, b) => b.timestamp - a.timestamp);
+
+        const monthIncomeObj = allIncomes[currentMonth] || { amount: 0 };
+        const totalIncome = monthIncomeObj.amount;
+        const totalExpense = monthExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+        const balance = totalIncome - totalExpense;
+
+        document.getElementById('mainBalance').textContent = balance.toLocaleString() + " Ft";
+        document.getElementById('headerIncome').textContent = totalIncome.toLocaleString() + " Ft";
+        document.getElementById('headerExpense').textContent = totalExpense.toLocaleString() + " Ft";
+
+        if (monthExpenses.length === 0) {
+            container.innerHTML += "<p style='color:#0369a1; font-size:14px;'>Ebben a hónapban még nincs rögzített kiadás.</p>";
+            return;
+        }
+
+        monthExpenses.forEach(item => {
+            const card = document.createElement('div');
+            card.className = "card";
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <span style="font-weight:bold; font-size:15px; color:#0c4a6e;">${item.category}</span>
+                    <span style="color:#e11d48; font-weight:bold; font-size:16px;">-${item.amount.toLocaleString()} Ft</span>
+                    <div>
+                        <button class="btn-delete" onclick="deleteItem('${item.id}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="font-size:13px; color:#334155;">
+                    ${item.comment ? `<div><strong>Komment:</strong> ${item.comment}</div>` : '<em>Nincs megjegyzés</em>'}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    window.renderStats = () => {
+        const container = document.getElementById('stats-content');
+        
+        const monthIncomeObj = allIncomes[currentMonth] || { amount: 0 };
+        const totalIncome = monthIncomeObj.amount;
+
+        const monthExpenses = Object.values(allExpenses).filter(e => e.month === currentMonth);
+        const totalExpense = monthExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+        const balance = totalIncome - totalExpense;
+
+        const catBreakdown = {};
+        monthExpenses.forEach(e => {
+            const cat = e.category || "Egyéb";
+            if (!catBreakdown[cat]) catBreakdown[cat] = 0;
+            catBreakdown[cat] += e.amount;
+        });
+
+        let catHtml = "";
+        for (const [cat, sum] of Object.entries(catBreakdown)) {
+            catHtml += `<div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-bottom:1px solid rgba(2, 132, 199, 0.1);">
+                <span>${cat}:</span>
+                <span style="font-weight:bold; color:#0c4a6e;">${sum.toLocaleString()} Ft</span>
+            </div>`;
+        }
+
+        container.innerHTML = `
+            <div class="stat-box" style="border-left-color: #0ea5e9;">
+                <div class="stat-title">Havi Keret / Bevétel</div>
+                <div class="stat-value" style="color: #0369a1;">+${totalIncome.toLocaleString()} Ft</div>
+            </div>
+
+            <div class="stat-box" style="border-left-color: #e11d48;">
+                <div class="stat-title">Havi Összes Kiadás</div>
+                <div class="stat-value" style="color: #e11d48;">-${totalExpense.toLocaleString()} Ft</div>
+            </div>
+
+            <div class="stat-box" style="border-left-color: #0284c7;">
+                <div class="stat-title">Maradék Egyenleg</div>
+                <div class="stat-value" style="color: ${balance >= 0 ? '#0284c7' : '#e11d48'};">${balance.toLocaleString()} Ft</div>
+            </div>
+
+            <div style="margin-top:15px;">
+                <strong style="color: #0c4a6e;">Kiadások kategóriánként:</strong>
+                <div style="margin-top:5px; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 8px;">
+                    ${catHtml || "<p style='font-size:13px; color:#0369a1; margin:0;'>Nincs kiadás ebben a hónapban.</p>"}
+                </div>
+            </div>
+        `;
+    };
+
+    window.showTab = (tab) => {
+        document.getElementById('tab-log').classList.toggle('hidden', tab !== 'log');
+        document.getElementById('tab-stats').classList.toggle('hidden', tab !== 'stats');
+        document.getElementById('btn-tab-log').classList.toggle('active', tab === 'log');
+        document.getElementById('btn-tab-stats').classList.toggle('active', tab === 'stats');
+    };
+
+    window.changeMonth = changeMonth;
+    window.saveMonthlyIncome = saveMonthlyIncome;
+    window.saveExpense = saveExpense;
+    window.deleteItem = deleteItem;
+    window.showTab = showTab;
+</script>
+</body>
+</html>
